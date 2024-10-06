@@ -1,4 +1,6 @@
 import math
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage
 
 class EsquemaBinario:
     def __init__(self):
@@ -36,10 +38,32 @@ class EsquemaBinario:
         for fila in self.matriz:
             print("\t".join(map(str, fila)))
 
+    def generar_dendrograma(self, metodo):
+        if not self.bandera_cargado:
+            print("La matriz no se ha cargado. No se puede generar el dendrograma.")
+            return
+
+        # Calcula las distancias utilizando el método que prefieras
+        matriz_distancias = self.calcular_distancias(metodo)  # Guarda la matriz de distancias
+
+        if matriz_distancias is None:  # Comprueba si hubo un error en el cálculo de distancias
+            return
+
+        # Usa la función linkage para realizar el agrupamiento
+        Z = linkage(matriz_distancias, method='average')
+
+        # Dibuja el dendrograma
+        plt.figure(figsize=(10, 7))
+        dendrogram(Z, labels=[f'Individuo {i + 1}' for i in range(len(self.matriz))])
+        plt.title('Dendrograma')
+        plt.xlabel('Individuos')
+        plt.ylabel('Distancia')
+        plt.show()
+
     def calcular_distancias(self, metodo):
         if not self.bandera_cargado:
             print("La matriz no se ha cargado. No se puede calcular distancias.")
-            return
+            return None  # Devuelve None si no se puede calcular
 
         n = len(self.matriz)  # El número de filas (individuos)
         print("\nMatriz de distancias:")
@@ -53,7 +77,7 @@ class EsquemaBinario:
                     distancia = self.calcular_indice_jaccard(self.matriz[i], self.matriz[j])
                 else:
                     print("Método no reconocido. Por favor, elige 'sokal' o 'jaccard'.")
-                    return
+                    return None  # Devuelve None si el método no es válido
 
                 matriz_distancias[i][j] = distancia
                 matriz_distancias[j][i] = distancia  # Simetría en la matriz de distancias
@@ -76,6 +100,8 @@ class EsquemaBinario:
             print("\t".join(fila_imprimir))
 
         self.elegir_eslabonamiento(matriz_distancias)
+
+        return matriz_distancias  # Devuelve la matriz de distancias
 
     def elegir_eslabonamiento(self, matriz_distancias):
         print("\nElige el tipo de eslabonamiento:")
@@ -237,4 +263,5 @@ if __name__ == "__main__":
     if esquema.bandera_cargado:
         esquema.imprimir_matriz()
         metodo_elegido = esquema.elegir_metodo()
-        esquema.calcular_distancias(metodo_elegido)
+        #esquema.calcular_distancias(metodo_elegido)
+        esquema.generar_dendrograma(metodo_elegido)
