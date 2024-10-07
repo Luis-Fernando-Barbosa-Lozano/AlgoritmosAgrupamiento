@@ -10,16 +10,21 @@ class EsquemaBinario:
 
     def cargar_matriz_desde_archivo(self, archivo):
         try:
-            with open(archivo, 'r') as file:
-                for linea in file:
-                    valores = list(map(int, linea.split()))
-                    total_datos = sum(len(fila) for fila in self.matriz)
-                    if total_datos + len(valores) >= 10000:
-                        print("Error: El archivo contiene más de 10,000 registros. No se puede procesar.")
-                        return
-                    self.matriz.append(valores)
+            if archivo.endswith('.txt') or archivo.endswith('.csv'):
+                with open(archivo, 'r', encoding='utf-8-sig') as file:
+                    for linea in file:
+                        valores = list(map(int, linea.strip().split(',' if archivo.endswith('.csv') else None)))
+                        total_datos = sum(len(fila) for fila in self.matriz)
+                        if total_datos + len(valores) >= 10000:
+                            print("Error: El archivo contiene más de 10,000 registros. No se puede procesar.")
+                            return
+                        self.matriz.append(valores)
 
-            self.bandera_cargado = True
+                self.bandera_cargado = True
+            else:
+                print(f"Error: Tipo de archivo no soportado.")
+                return
+
         except FileNotFoundError:
             print(f"Error: El archivo {archivo} no se encontró.")
         except ValueError as e:
@@ -29,7 +34,6 @@ class EsquemaBinario:
 
         # Verificar la matriz cargada
         print("Matriz cargada:", self.matriz)
-        print("Número de filas:", len(self.matriz))
 
     def imprimir_matriz(self):
         if not self.bandera_cargado:
@@ -259,7 +263,7 @@ class EsquemaBinario:
 
 if __name__ == "__main__":
     esquema = EsquemaBinario()
-    esquema.cargar_matriz_desde_archivo("matriz.txt")
+    esquema.cargar_matriz_desde_archivo("datos.csv")
     if esquema.bandera_cargado:
         esquema.imprimir_matriz()
         metodo_elegido = esquema.elegir_metodo()
