@@ -6,34 +6,7 @@ class EsquemaBinario:
     def __init__(self, matriz_distancias=None):
         self.matriz = matriz_distancias if matriz_distancias is not None else []
         self.bandera_cargado = False
-        self.historial_eslabonamientos = []# Lista para almacenar los eslabonamientos realizados
-
-    def cargar_matriz_desde_archivo(self, archivo):
-        try:
-            if archivo.endswith('.txt') or archivo.endswith('.csv'):
-                with open(archivo, 'r', encoding='utf-8-sig') as file:
-                    for linea in file:
-                        valores = list(map(int, linea.strip().split(',' if archivo.endswith('.csv') else None)))
-                        total_datos = sum(len(fila) for fila in self.matriz)
-                        if total_datos + len(valores) >= 10000:
-                            print("Error: El archivo contiene más de 10,000 registros. No se puede procesar.")
-                            return
-                        self.matriz.append(valores)
-
-                self.bandera_cargado = True
-            else:
-                print(f"Error: Tipo de archivo no soportado.")
-                return
-
-        except FileNotFoundError:
-            print(f"Error: El archivo {archivo} no se encontró.")
-        except ValueError as e:
-            print(f"Error: El archivo contiene valores no válidos. Detalle: {e}")
-        except Exception as e:
-            print(f"Error inesperado: {e}")
-
-        # Verificar la matriz cargada
-        print("Matriz cargada:", self.matriz)
+        self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
 
     def imprimir_matriz(self):
         if not self.bandera_cargado:
@@ -261,18 +234,27 @@ class EsquemaBinario:
             else:
                 print("Opción no válida. Por favor elige 'sokal' o 'jaccard'.")
 
-def main(archivo=None, matriz_distancias=None):
-    esquema = EsquemaBinario(matriz_distancias)
-
-    # Cargar matriz desde archivo si no se ha cargado previamente
-    if not esquema.bandera_cargado and archivo is not None:
-        esquema.cargar_matriz_desde_archivo(archivo)
-
-    if esquema.bandera_cargado:
-        esquema.imprimir_matriz()
-        metodo_elegido = esquema.elegir_metodo()
-        esquema.generar_dendrograma(metodo_elegido)
-    else:
-        print("Error: No se cargó ninguna matriz. Proporcione un archivo o una matriz válida.")
+def main(matriz):
+    esquema_binario = EsquemaBinario(matriz)
 
 
+    metodo = "sokal"  # Asumido como ya predeterminado o configurado
+    matriz_distancia = esquema_binario.calcular_distancia_binaria(metodo)
+
+    print("Matriz de distancias:")
+    for fila in matriz_distancia:
+        print(f"Distancia entre {fila[0]} y {fila[1]}: {fila[2]:.2f}")
+
+    print("Matriz de distancias completa:")
+    for fila in matriz_distancia:
+        print(["{:.2f}".format(valor) for valor in fila])
+
+    esquema_binario.elegir_eslabonamiento(matriz_distancia)
+
+    print("Historial de eslabonamientos:")
+    for historia in esquema_binario.historial_eslabonamientos:
+        print(historia)
+
+    print("\nMatriz de distancias después del eslabonamiento:")
+    for fila in esquema_binario.matriz_distancia:
+        print(["{:.4f}".format(valor) for valor in fila])

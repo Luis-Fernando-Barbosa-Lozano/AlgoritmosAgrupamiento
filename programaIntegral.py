@@ -1,4 +1,4 @@
-import matrisDistancias as md
+from matrisDistancias import main as main_md
 from grower import main as main_grower
 #from mahalanobis import main as main_mahalanobis
 
@@ -124,7 +124,7 @@ class ProcesadorMatriz:
             tipo_dominante = tipos_unicos.pop()
             if tipo_dominante == 'binario':
                 print("El archivo es 100% binario. Llamando a Esquema Binario...")
-                md.main(self.matriz)  # Aquí pasas la matriz ya cargada
+                main_md(self.matriz)  # Aquí pasas la matriz ya cargada
             elif tipo_dominante == 'numérico':
                 print("El archivo es 100% numérico. Llamando a mahalanobis...")
                 main_mahalanobis(self.matriz)  # Aquí también pasas la matriz
