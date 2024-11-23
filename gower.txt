@@ -1,5 +1,5 @@
-1, 23, 25000,  , Soltero
-2, 45, 52000, F, Casado
-3, 35, 30000, M, Divorciado
-4, 28, 45000, F, Soltero
-5, 50, 60000, M, Casado
+1 23 25000 M Soltero
+2 45 52000 F Casado
+3 35 30000 M Divorciado
+2 28 45000 F Soltero
+5 50 60000 M Casado
