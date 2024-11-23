@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 
 class EsquemaBinario:
-    def __init__(self):
-        self.matriz = []
+    def __init__(self, matriz_distancias=None):
+        self.matriz = matriz_distancias if matriz_distancias is not None else []
         self.bandera_cargado = False
-        self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
+        self.historial_eslabonamientos = []# Lista para almacenar los eslabonamientos realizados
 
     def cargar_matriz_desde_archivo(self, archivo):
         try:
@@ -261,11 +261,18 @@ class EsquemaBinario:
             else:
                 print("Opción no válida. Por favor elige 'sokal' o 'jaccard'.")
 
-if __name__ == "__main__":
-    esquema = EsquemaBinario()
-    esquema.cargar_matriz_desde_archivo("datos.csv")
+def main(archivo=None, matriz_distancias=None):
+    esquema = EsquemaBinario(matriz_distancias)
+
+    # Cargar matriz desde archivo si no se ha cargado previamente
+    if not esquema.bandera_cargado and archivo is not None:
+        esquema.cargar_matriz_desde_archivo(archivo)
+
     if esquema.bandera_cargado:
         esquema.imprimir_matriz()
         metodo_elegido = esquema.elegir_metodo()
-        #esquema.calcular_distancias(metodo_elegido)
         esquema.generar_dendrograma(metodo_elegido)
+    else:
+        print("Error: No se cargó ninguna matriz. Proporcione un archivo o una matriz válida.")
+
+

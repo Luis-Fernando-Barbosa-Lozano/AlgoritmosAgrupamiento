@@ -2,18 +2,31 @@ import numpy as np
 
 def leer_matriz_archivo(nombre_archivo):
     matriz = []
-    with open(nombre_archivo, 'r') as archivo:
-        for linea in archivo:
-            try:
-                # Filtrar y asegurar que los valores no sean vacíos o solo espacios
-                fila = [float(valor) for valor in linea.split() if valor.strip()]
-                if len(fila) != len(linea.split()):
-                    print(f"Error: Espacio en blanco o valor vacío encontrado en la línea -> '{linea.strip()}'")
+    try:
+        with open(nombre_archivo, 'r') as archivo:
+            for linea in archivo:
+                # Verificar si la línea contiene valores distintos de 0 o 1
+                if any(valor not in ['0', '1'] for valor in linea.split()):
+                    # Si se encuentra un valor diferente de 0 o 1, se procede con la lectura normal
+                    try:
+                        fila = [float(valor) for valor in linea.split() if valor.strip()]
+                        if len(fila) != len(linea.split()):
+                            print(f"Error: Espacio en blanco o valor vacío encontrado en la línea -> '{linea.strip()}'")
+                            return None
+                        matriz.append(fila)
+                    except ValueError:
+                        print(f"Error: Línea inválida encontrada y omitida -> '{linea.strip()}'")
+                        return None
+                else:
+                    # Si encontramos solo 1 y 0, no procesamos el archivo y mostramos el mensaje
+                    print("Error: El archivo contiene valores binarios (0 y 1) y no se puede procesar.")
                     return None
-                matriz.append(fila)
-            except ValueError:
-                print(f"Error: Línea inválida encontrada y omitida -> '{linea.strip()}'")
-                return None
+    except FileNotFoundError:
+        print(f"Error: El archivo {nombre_archivo} no fue encontrado.")
+        return None
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return None
     return matriz
 
 def mostrar_matriz(matriz):
@@ -97,42 +110,41 @@ def calcular_distancia_mahalanobis_manual(vector, media, cov_inversa):
     distancia = np.sqrt(resta.T @ cov_inversa @ resta)
     return distancia
 
-# Ruta del archivo de datos
-nombre_archivo = 'matrizMahalanobis.txt'
+def main(nombre_archivo):
+    # Leer y mostrar matriz del archivo
+    matriz_datos = leer_matriz_archivo(nombre_archivo)
+    if matriz_datos:
+        mostrar_matriz(matriz_datos)
 
-# Leer y mostrar matriz del archivo
-matriz_datos = leer_matriz_archivo(nombre_archivo)
-if matriz_datos:
-    mostrar_matriz(matriz_datos)
-
-    # Validar la matriz antes de continuar
-    if not validar_matriz(matriz_datos):
-        print("Error: La matriz contiene valores inválidos y no se puede procesar.")
-    else:
-        # Eliminar columnas constantes
-        matriz_datos = eliminar_columnas_constantes(matriz_datos)
-
-        # Calcular media y matriz centrada
-        media_datos = calcular_media(matriz_datos)
-        matriz_centrada = centrar_matriz(matriz_datos, media_datos)
-
-        # Calcular matriz de covarianza e inversa
-        matriz_covarianza = calcular_covarianza(matriz_centrada)
-        matriz_cov_inversa = calcular_inversa_covarianza(matriz_covarianza)
-
-        # Verificar si se pudo calcular la inversa
-        if matriz_cov_inversa is not None:
-            distancias = []
-            for vector in matriz_datos:
-                distancia = float(calcular_distancia_mahalanobis_manual(vector, media_datos, matriz_cov_inversa))
-                distancias.append(distancia)
-
-            # Mostrar resultados
-            print("Media:", media_datos)
-            print("Matriz de covarianza:", matriz_covarianza)
-            print("Inversa de la matriz de covarianza:\n", matriz_cov_inversa)
-            print("Distancias de Mahalanobis:", distancias)
+        # Validar la matriz antes de continuar
+        if not validar_matriz(matriz_datos):
+            print("Error: La matriz contiene valores inválidos y no se puede procesar.")
         else:
-            print("No se pudieron calcular distancias debido a problemas con la matriz de covarianza.")
-else:
-    print("No se pudo cargar la matriz correctamente.")
+            # Eliminar columnas constantes
+            matriz_datos = eliminar_columnas_constantes(matriz_datos)
+
+            # Calcular media y matriz centrada
+            media_datos = calcular_media(matriz_datos)
+            matriz_centrada = centrar_matriz(matriz_datos, media_datos)
+
+            # Calcular matriz de covarianza e inversa
+            matriz_covarianza = calcular_covarianza(matriz_centrada)
+            matriz_cov_inversa = calcular_inversa_covarianza(matriz_covarianza)
+
+            # Verificar si se pudo calcular la inversa
+            if matriz_cov_inversa is not None:
+                distancias = []
+                for vector in matriz_datos:
+                    distancia = float(calcular_distancia_mahalanobis_manual(vector, media_datos, matriz_cov_inversa))
+                    distancias.append(distancia)
+
+                # Mostrar resultados
+                print("Media:", media_datos)
+                print("Matriz de covarianza:", matriz_covarianza)
+                print("Inversa de la matriz de covarianza:\n", matriz_cov_inversa)
+                print("Distancias de Mahalanobis:", distancias)
+            else:
+                print("No se pudieron calcular distancias debido a problemas con la matriz de covarianza.")
+    else:
+        print("No se pudo cargar la matriz correctamente.")
+
