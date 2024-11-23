@@ -1,7 +1,6 @@
 import matrisDistancias as md
 from grower import main as main_grower
-from mahalanobis import main as main_mahalanobis
-
+#from mahalanobis import main as main_mahalanobis
 
 class ProcesadorMatriz:
     def __init__(self):
