@@ -4,14 +4,11 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 
 class EsquemaBinario:
     def __init__(self, matriz_distancias=None):
-        self.matriz = matriz_distancias if matriz_distancias is not None else []
+        self.matriz = matriz_distancias if matriz_distancias is not None else print("Error al cargar la matriz")
         self.bandera_cargado = False
-        self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
+        self.historial_eslabonamientos = []# Lista para almacenar los eslabonamientos realizados
 
-    def imprimir_matriz(self):
-        if not self.bandera_cargado:
-            print("La matriz no se ha cargado. No se puede imprimir.")
-            return
+    def imprimir_matriz(self, matriz):
         for fila in self.matriz:
             print("\t".join(map(str, fila)))
 
@@ -234,27 +231,11 @@ class EsquemaBinario:
             else:
                 print("Opción no válida. Por favor elige 'sokal' o 'jaccard'.")
 
-def main(matriz):
-    esquema_binario = EsquemaBinario(matriz)
+def main(matriz_distancias):
+    esquema = EsquemaBinario(matriz_distancias)
+    esquema.imprimir_matriz(matriz_distancias)
+    metodo_elegido = esquema.elegir_metodo()
+    esquema.generar_dendrograma(metodo_elegido)
 
 
-    metodo = "sokal"  # Asumido como ya predeterminado o configurado
-    matriz_distancia = esquema_binario.calcular_distancia_binaria(metodo)
 
-    print("Matriz de distancias:")
-    for fila in matriz_distancia:
-        print(f"Distancia entre {fila[0]} y {fila[1]}: {fila[2]:.2f}")
-
-    print("Matriz de distancias completa:")
-    for fila in matriz_distancia:
-        print(["{:.2f}".format(valor) for valor in fila])
-
-    esquema_binario.elegir_eslabonamiento(matriz_distancia)
-
-    print("Historial de eslabonamientos:")
-    for historia in esquema_binario.historial_eslabonamientos:
-        print(historia)
-
-    print("\nMatriz de distancias después del eslabonamiento:")
-    for fila in esquema_binario.matriz_distancia:
-        print(["{:.4f}".format(valor) for valor in fila])
