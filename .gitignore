@@ -1,3 +1,3 @@
-**/.iml
-**/.xml
-**/.jar
+.venv/Lib
+*.xml
+*.iml
