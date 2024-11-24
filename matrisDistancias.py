@@ -4,11 +4,18 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 
 class EsquemaBinario:
     def __init__(self, matriz_distancias=None):
-        self.matriz = matriz_distancias if matriz_distancias is not None else print("Error al cargar la matriz")
+        if matriz_distancias is not None:
+            self.matriz = [[int(valor) for valor in fila] for fila in matriz_distancias]
+        else:
+            self.matriz = []
         self.bandera_cargado = False
-        self.historial_eslabonamientos = []# Lista para almacenar los eslabonamientos realizados
+        self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
 
-    def imprimir_matriz(self, matriz):
+
+    def imprimir_matriz(self):
+        if not self.bandera_cargado:
+            print("La matriz no se ha cargado. No se puede imprimir.")
+            return
         for fila in self.matriz:
             print("\t".join(map(str, fila)))
 
@@ -35,47 +42,27 @@ class EsquemaBinario:
         plt.show()
 
     def calcular_distancias(self, metodo):
-        if not self.bandera_cargado:
-            print("La matriz no se ha cargado. No se puede calcular distancias.")
-            return None  # Devuelve None si no se puede calcular
-
-        n = len(self.matriz)  # El número de filas (individuos)
-        print("\nMatriz de distancias:")
-        matriz_distancias = [[0] * n for _ in range(n)]  # Inicializa la matriz de distancias de nxn
+        n = len(self.matriz)
+        matriz_distancias = [[0] * n for _ in range(n)]
 
         for i in range(n):
-            for j in range(i + 1, n):  # Solo calculamos para j > i
+            for j in range(i + 1, n):
                 if metodo == "sokal":
                     distancia = self.calcular_indice_sokal(self.matriz[i], self.matriz[j])
                 elif metodo == "jaccard":
                     distancia = self.calcular_indice_jaccard(self.matriz[i], self.matriz[j])
                 else:
                     print("Método no reconocido. Por favor, elige 'sokal' o 'jaccard'.")
-                    return None  # Devuelve None si el método no es válido
+                    return None
 
                 matriz_distancias[i][j] = distancia
-                matriz_distancias[j][i] = distancia  # Simetría en la matriz de distancias
-                print(f"Distancia entre {i + 1} y {j + 1}: {distancia:.2f}")
+                matriz_distancias[j][i] = distancia
 
-        # Llenar la diagonal con 1
-        for i in range(n):
-            matriz_distancias[i][i] = 1
-
-        # Imprimir la matriz de distancias completa
         print("\nMatriz de distancias completa:")
-        for i in range(n):
-            fila_imprimir = []
-            for j in range(n):
-                if j > i:
-                    fila_imprimir.append('*')
-                else:
-                    fila_imprimir.append(f"{matriz_distancias[i][j]:.2f}")
+        for fila in matriz_distancias:
+            print("\t".join(f"{valor:.2f}" for valor in fila))
 
-            print("\t".join(fila_imprimir))
-
-        self.elegir_eslabonamiento(matriz_distancias)
-
-        return matriz_distancias  # Devuelve la matriz de distancias
+        return matriz_distancias
 
     def elegir_eslabonamiento(self, matriz_distancias):
         print("\nElige el tipo de eslabonamiento:")
@@ -209,10 +196,12 @@ class EsquemaBinario:
             print(eslabonamiento)
 
     def calcular_conteo(self, a, b):
+        print(f"Comparando: {a} y {b}")  # Imprime las filas comparadas
         a_count = sum(1 for x, y in zip(a, b) if x == 1 and y == 1)
         b_count = sum(1 for x, y in zip(a, b) if x == 1 and y == 0)
         c_count = sum(1 for x, y in zip(a, b) if x == 0 and y == 1)
         d_count = sum(1 for x, y in zip(a, b) if x == 0 and y == 0)
+        print(f"Resultado de conteo - a_count: {a_count}, b_count: {b_count}, c_count: {c_count}, d_count: {d_count}")
         return a_count, b_count, c_count, d_count
 
     def calcular_indice_sokal(self, a, b):
@@ -221,7 +210,9 @@ class EsquemaBinario:
 
     def calcular_indice_jaccard(self, a, b):
         a_count, b_count, c_count, d_count = self.calcular_conteo(a, b)
-        return round(a_count / (a_count + b_count + c_count), 2) if (a_count + b_count + c_count) != 0 else 0.0
+        denominador = a_count + b_count + c_count
+        print(f"Jaccard - Numerador: {a_count}, Denominador: {denominador}")
+        return round(a_count / denominador, 2) if denominador != 0 else 0.0
 
     def elegir_metodo(self):
         while True:
@@ -231,11 +222,35 @@ class EsquemaBinario:
             else:
                 print("Opción no válida. Por favor elige 'sokal' o 'jaccard'.")
 
-def main(matriz_distancias):
-    esquema = EsquemaBinario(matriz_distancias)
-    esquema.imprimir_matriz(matriz_distancias)
-    metodo_elegido = esquema.elegir_metodo()
-    esquema.generar_dendrograma(metodo_elegido)
+def main(matriz):
+    # Crear una instancia de la clase EsquemaBinario
+    esquema_binario = EsquemaBinario(matriz)
 
+    # Activar la bandera para indicar que la matriz está cargada
+    esquema_binario.bandera_cargado = True
 
+    # Imprimir la matriz cargada
+    print("Matriz inicial:")
+    esquema_binario.imprimir_matriz()
+
+    # Solicitar al usuario el método de cálculo de distancia
+    metodo = esquema_binario.elegir_metodo()
+
+    # Calcular la matriz de distancias con el método elegido
+    matriz_distancia = esquema_binario.calcular_distancias(metodo)
+    if matriz_distancia is None:  # Si hay error en el cálculo, finalizar el programa
+        return
+
+    # Preguntar al usuario por el tipo de eslabonamiento
+    esquema_binario.elegir_eslabonamiento(matriz_distancia)
+
+    # Generar el dendrograma
+    esquema_binario.generar_dendrograma(metodo)
+
+    # Mostrar historial de eslabonamientos
+    print("\nHistorial de eslabonamientos:")
+    for historia in esquema_binario.historial_eslabonamientos:
+        print(historia)
+
+    print("\nProceso completado.")
 
