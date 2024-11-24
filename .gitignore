@@ -1,3 +1,5 @@
 .venv/Lib
 *.xml
 *.iml
+*.idea
+.idea
