@@ -1,6 +1,7 @@
 import math
 import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
 
 class EsquemaBinario:
     def __init__(self, matriz_distancias=None):
@@ -10,7 +11,6 @@ class EsquemaBinario:
             self.matriz = []
         self.bandera_cargado = False
         self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
-
 
     def imprimir_matriz(self):
         if not self.bandera_cargado:
@@ -30,8 +30,18 @@ class EsquemaBinario:
         if matriz_distancias is None:  # Comprueba si hubo un error en el cálculo de distancias
             return
 
+        # Convierte la matriz de distancias a formato condensado
+        matriz_distancias_condensada = squareform(matriz_distancias)
+
         # Usa la función linkage para realizar el agrupamiento
-        Z = linkage(matriz_distancias, method='average')
+        Z = linkage(matriz_distancias_condensada, method='average')
+
+        # Historial de eslabonamientos basado en el formato de linkage
+        self.historial_eslabonamientos.clear()  # Limpiar historial previo
+        for i, (clust1, clust2, dist, _) in enumerate(Z):
+            self.historial_eslabonamientos.append(
+                f"Paso {i + 1}: Combinar clúster {int(clust1 + 1)} y clúster {int(clust2 + 1)} con distancia {dist:.2f}"
+            )
 
         # Dibuja el dendrograma
         plt.figure(figsize=(10, 7))
@@ -253,4 +263,3 @@ def main(matriz):
         print(historia)
 
     print("\nProceso completado.")
-
