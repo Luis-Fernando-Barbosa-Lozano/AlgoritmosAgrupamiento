@@ -179,42 +179,46 @@ class EsquemaBinario:
         clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
 
         def calcular_centroide(cluster):
-            """ Calcula el centroide promedio del clúster """
-            centroide = [sum(self.matriz[idx - 1][j] for idx in cluster) / len(cluster) for j in
-                         range(len(self.matriz[0]))]
-            return centroide
+            """Calcula el centroide promedio del clúster."""
+            return [
+                sum(self.matriz[idx - 1][j] for idx in cluster) / len(cluster)
+                for j in range(len(self.matriz[0]))
+            ]
+
+        def distancia_centroide(centroide1, centroide2):
+            """Calcula la distancia euclidiana entre dos centroides."""
+            return math.sqrt(
+                sum((c1 - c2) ** 2 for c1, c2 in zip(centroide1, centroide2))
+            )
 
         while len(clusters) > 1:
             min_dist = float('inf')
             clust1, clust2 = -1, -1
 
+            # Calcula la distancia entre todos los pares de clústeres
             for i in range(len(clusters)):
                 for j in range(i + 1, len(clusters)):
-                    # Calculamos la distancia mínima o máxima entre los clusters
-                    distancias_inter_clust = [
-                        matriz_distancias[a - 1][b - 1]
-                        # Ajuste de índice, restando 1 para manejar la matriz correctamente
-                        for a in clusters[i]
-                        for b in clusters[j]
-                    ]
-                    distancia = func(
-                        distancias_inter_clust)  # Uso de la función min o max para obtener la distancia adecuada
-                    if distancia == func(distancias_inter_clust):  # Comparar con la distancia más cercana o más lejana
-                        extrema_dist = distancia
+                    centroide1 = calcular_centroide(clusters[i])
+                    centroide2 = calcular_centroide(clusters[j])
+                    distancia = distancia_centroide(centroide1, centroide2)
+
+                    if distancia < min_dist:
+                        min_dist = distancia
                         clust1, clust2 = i, j
 
-            # Combinar los clústeres encontrados
+            # Combina los dos clústeres más cercanos
             nuevo_cluster = clusters[clust1] + clusters[clust2]
             self.historial_eslabonamientos.append(
-                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {min_dist:.2f}\n"
+                f"Combinar clúster {clusters[clust1]} y clúster {clusters[clust2]} "
+                f"con distancia {min_dist:.2f}"
             )
 
-            # Actualizar la lista de clústeres
+            # Actualiza la lista de clústeres
             clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
             clusters.append(nuevo_cluster)
 
-        # Al imprimir, cada eslabonamiento se mostrará en una nueva línea
-        print("\nHistorial de eslabonamientos:\n")
+        # Imprime el historial de eslabonamientos
+        print("\nHistorial de eslabonamientos (centroide):\n")
         for eslabonamiento in self.historial_eslabonamientos:
             print(eslabonamiento)
 
