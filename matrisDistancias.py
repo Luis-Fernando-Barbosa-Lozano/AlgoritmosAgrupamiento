@@ -40,16 +40,32 @@ class EsquemaBinario:
         self.historial_eslabonamientos.clear()  # Limpiar historial previo
         for i, (clust1, clust2, dist, _) in enumerate(Z):
             self.historial_eslabonamientos.append(
-                f"Paso {i + 1}: Combinar clúster {int(clust1 + 1)} y clúster {int(clust2 + 1)} con distancia {dist:.2f}"
+                f"Paso {i + 1}: Combinar clúster {int(clust1) + 1} y clúster {int(clust2) + 1} con distancia {dist:.2f}"
             )
+
+        # Ajustar etiquetas para coincidir con el historial
+        etiquetas = [f'Individuo {i + 1}' for i in range(len(self.matriz))]
+        print("\nHistorial de eslabonamientos:\n" + "\n".join(self.historial_eslabonamientos))
 
         # Dibuja el dendrograma
         plt.figure(figsize=(10, 7))
-        dendrogram(Z, labels=[f'Individuo {i + 1}' for i in range(len(self.matriz))])
+        dendrogram(Z, labels=etiquetas)
         plt.title('Dendrograma')
         plt.xlabel('Individuos')
         plt.ylabel('Distancia')
         plt.show()
+
+    def extraer_indices_y_distancia(self, eslabonamiento):
+        """Extrae los índices de clústeres y la distancia de una entrada del historial."""
+        import re
+        # Busca los índices y distancia con expresiones regulares
+        match = re.search(r"clúster (\d+) y clúster (\d+) con distancia ([\d.]+)", eslabonamiento)
+        if match:
+            clust1 = int(match.group(1)) - 1  # Ajustar a índice cero
+            clust2 = int(match.group(2)) - 1
+            dist = float(match.group(3))
+            return clust1, clust2, dist
+        raise ValueError(f"No se pudo analizar el eslabonamiento: {eslabonamiento}")
 
     def calcular_distancias(self, metodo):
         n = len(self.matriz)
@@ -177,6 +193,7 @@ class EsquemaBinario:
     def eslabonamiento_centroide(self, matriz_distancias):
         n = len(matriz_distancias)
         clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
+        eslabonamientos = []  # Almacena los pasos para el dendrograma
 
         def calcular_centroide(cluster):
             """Calcula el centroide promedio del clúster."""
@@ -208,6 +225,7 @@ class EsquemaBinario:
 
             # Combina los dos clústeres más cercanos
             nuevo_cluster = clusters[clust1] + clusters[clust2]
+            eslabonamientos.append((clusters[clust1], clusters[clust2], min_dist, len(nuevo_cluster)))
             self.historial_eslabonamientos.append(
                 f"Combinar clúster {clusters[clust1]} y clúster {clusters[clust2]} "
                 f"con distancia {min_dist:.2f}"
@@ -216,6 +234,9 @@ class EsquemaBinario:
             # Actualiza la lista de clústeres
             clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
             clusters.append(nuevo_cluster)
+
+        # Guarda los eslabonamientos para el dendrograma
+        self.eslabonamientos = eslabonamientos
 
         # Imprime el historial de eslabonamientos
         print("\nHistorial de eslabonamientos (centroide):\n")
