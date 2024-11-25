@@ -93,6 +93,7 @@ class EsquemaBinario:
             self.elegir_eslabonamiento(matriz_distancias)
 
     def eslabonamiento_vecino_mas_cercano(self, matriz_distancias):
+
         n = len(matriz_distancias)
         clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
 
@@ -102,11 +103,17 @@ class EsquemaBinario:
             clust1, clust2 = -1, -1
             for i in range(len(clusters)):
                 for j in range(i + 1, len(clusters)):
-                    for a in clusters[i]:
-                        for b in clusters[j]:
-                            if matriz_distancias[a - 1][b - 1] < min_dist:  # Restar 1 para índices de matriz
-                                min_dist = matriz_distancias[a - 1][b - 1]
-                                clust1, clust2 = i, j
+                    # Calculamos la distancia mínima o máxima entre los clusters
+                    distancias_inter_clust = [
+                        matriz_distancias[a - 1][b - 1]
+                        # Ajuste de índice, restando 1 para manejar la matriz correctamente
+                        for a in clusters[i]
+                        for b in clusters[j]
+                    ]
+                    distancia = min(distancias_inter_clust)  # Obtener la distancia mínima
+                    if distancia < min_dist:  # Actualizar si se encuentra una distancia menor
+                        min_dist = distancia
+                        clust1, clust2 = i, j
 
             # Combinar los clústeres encontrados
             nuevo_cluster = clusters[clust1] + clusters[clust2]
@@ -121,6 +128,7 @@ class EsquemaBinario:
             # Recalcular distancias para el nuevo clúster (vecino más cercano)
             for i in range(len(matriz_distancias)):
                 if i != clust1 and i != clust2:
+                    # Actualizamos las distancias para el nuevo clúster
                     matriz_distancias[i][len(clusters) - 1] = min(matriz_distancias[i][clust1],
                                                                   matriz_distancias[i][clust2])
 
@@ -182,12 +190,17 @@ class EsquemaBinario:
 
             for i in range(len(clusters)):
                 for j in range(i + 1, len(clusters)):
-                    centroide_1 = calcular_centroide(clusters[i])
-                    centroide_2 = calcular_centroide(clusters[j])
-
-                    distancia = math.sqrt(sum((x - y) ** 2 for x, y in zip(centroide_1, centroide_2)))
-                    if distancia < min_dist:
-                        min_dist = distancia
+                    # Calculamos la distancia mínima o máxima entre los clusters
+                    distancias_inter_clust = [
+                        matriz_distancias[a - 1][b - 1]
+                        # Ajuste de índice, restando 1 para manejar la matriz correctamente
+                        for a in clusters[i]
+                        for b in clusters[j]
+                    ]
+                    distancia = func(
+                        distancias_inter_clust)  # Uso de la función min o max para obtener la distancia adecuada
+                    if distancia == func(distancias_inter_clust):  # Comparar con la distancia más cercana o más lejana
+                        extrema_dist = distancia
                         clust1, clust2 = i, j
 
             # Combinar los clústeres encontrados
@@ -257,9 +270,4 @@ def main(matriz):
     # Generar el dendrograma
     esquema_binario.generar_dendrograma(metodo)
 
-    # Mostrar historial de eslabonamientos
-    print("\nHistorial de eslabonamientos:")
-    for historia in esquema_binario.historial_eslabonamientos:
-        print(historia)
 
-    print("\nProceso completado.")
