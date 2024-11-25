@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import linkage, dendrogram
 
 class ClusterEslabonamiento:
+
     def __init__(self, matriz):
         self.matriz = self.validar_matriz(matriz)  # Validar la matriz de entrada
         self.historial_eslabonamientos = []  # Historial de combinaciones de clusters
@@ -88,7 +89,7 @@ class ClusterEslabonamiento:
         distancia = np.sqrt(resta.T @ cov_inversa @ resta)
         return distancia
 
-    def elegir_eslabonamiento(self, matriz_distancias):
+    def  elegir_eslabonamiento(self, matriz_distancias):
         print("\nElige el tipo de eslabonamiento:")
         print("1. Vecino más cercano")
         print("2. Vecino más lejano")
@@ -122,23 +123,34 @@ class ClusterEslabonamiento:
         n = len(matriz_distancias)
         clusters = [[i + 1] for i in range(n)]
 
+        def calcular_centroide(cluster):
+            centroide = []
+            for j in range(len(self.matriz[0])):
+                valores = []
+                for idx in cluster:
+                    valor = self.matriz[idx - 1][j]
+                    try:
+                        valores.append(float(valor))  # Intentamos convertir a número
+                    except ValueError:
+                        pass  # Ignoramos valores no numéricos
+                if valores:  # Si hay valores numéricos, calculamos la media
+                    centroide.append(sum(valores) / len(valores))
+                else:  # Si no hay valores numéricos, agregamos un marcador (por ejemplo, 0)
+                    centroide.append(0)
+            return centroide
+
         while len(clusters) > 1:
             min_dist = float('inf')
             clust1, clust2 = -1, -1
 
             for i in range(len(clusters)):
                 for j in range(i + 1, len(clusters)):
-                    # Calculamos la distancia mínima o máxima entre los clusters
-                    distancias_inter_clust = [
-                        matriz_distancias[a - 1][b - 1]
-                        # Ajuste de índice, restando 1 para manejar la matriz correctamente
-                        for a in clusters[i]
-                        for b in clusters[j]
-                    ]
-                    distancia = func(
-                        distancias_inter_clust)  # Uso de la función min o max para obtener la distancia adecuada
-                    if distancia == func(distancias_inter_clust):  # Comparar con la distancia más cercana o más lejana
-                        extrema_dist = distancia
+                    centroide_1 = calcular_centroide(clusters[i])
+                    centroide_2 = calcular_centroide(clusters[j])
+
+                    distancia = np.sqrt(sum((x - y) ** 2 for x, y in zip(centroide_1, centroide_2)))
+                    if distancia < min_dist:
+                        min_dist = distancia
                         clust1, clust2 = i, j
 
             nuevo_cluster = clusters[clust1] + clusters[clust2]
@@ -155,7 +167,6 @@ class ClusterEslabonamiento:
     def _eslabonamiento_generico(self, matriz_distancias, func, tipo_eslabonamiento):
         n = len(matriz_distancias)
         clusters = [[i + 1] for i in range(n)]
-        linkage_matrix = []
 
         while len(clusters) > 1:
             extrema_dist = float('inf') if func == min else -float('inf')
@@ -165,14 +176,15 @@ class ClusterEslabonamiento:
                 for j in range(i + 1, len(clusters)):
                     for a in clusters[i]:
                         for b in clusters[j]:
-                            distancia = matriz_distancias[a - 1][b - 1]  # Corregir los índices
+                            distancia = matriz_distancias[a - 1][b - 1]
                             if func(distancia, extrema_dist) == distancia:
                                 extrema_dist = distancia
                                 clust1, clust2 = i, j
 
-            linkage_matrix.append([clust1, clust2, extrema_dist, len(clusters[clust1]) + len(clusters[clust2])])
-
             nuevo_cluster = clusters[clust1] + clusters[clust2]
+            self.historial_eslabonamientos.append(
+                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {extrema_dist:.2f}\n"
+            )
             clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
             clusters.append(nuevo_cluster)
 
@@ -187,16 +199,99 @@ class ClusterEslabonamiento:
             linkage_matrix = self._generar_matriz_linkage(matriz_distancias, max)
         elif metodo == 'centroid':
             linkage_matrix = self._generar_matriz_linkage_centroide(matriz_distancias)
+        else:
+            raise ValueError("Método no válido para el dendrograma.")
 
-        dendrogram(linkage_matrix)
-        plt.title(f"Dendrograma ({metodo})")
+        plt.figure(figsize=(10, 7))
+        dendrogram(linkage_matrix, labels=[f'Individuo {i + 1}' for i in range(len(self.matriz))])
+        plt.title(f'Dendrograma - Método {metodo.capitalize()}')
+        plt.xlabel('Individuos')
+        plt.ylabel('Distancia')
         plt.show()
 
-    def _calcular_centroide(self, cluster):
-        """
-        Calcula el centroide de un cluster dado.
-        """
-        return np.mean([self.matriz[i] for i in cluster], axis=0)
+    def _generar_matriz_linkage(self, matriz_distancias, func):
+        n = len(matriz_distancias)
+        clusters = [[i] for i in range(n)]
+        linkage_matrix = []
+        cluster_ids = {i: i for i in range(n)}
+        current_cluster = n
+
+        while len(clusters) > 1:
+            extrema_dist = float('inf') if func == min else -float('inf')
+            clust1, clust2 = -1, -1
+
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    for a in clusters[i]:
+                        for b in clusters[j]:
+                            distancia = matriz_distancias[a][b]
+                            if func(distancia, extrema_dist) == distancia:
+                                extrema_dist = distancia
+                                clust1, clust2 = i, j
+
+            linkage_matrix.append([cluster_ids[clusters[clust1][0]],
+                                   cluster_ids[clusters[clust2][0]],
+                                   extrema_dist,
+                                   len(clusters[clust1]) + len(clusters[clust2])])
+
+            nuevo_cluster = clusters[clust1] + clusters[clust2]
+            for idx in nuevo_cluster:
+                cluster_ids[idx] = current_cluster
+            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
+            clusters.append(nuevo_cluster)
+            current_cluster += 1
+
+        return np.array(linkage_matrix)
+
+    def _generar_matriz_linkage_centroide(self, matriz_distancias):
+        n = len(matriz_distancias)
+        clusters = [[i] for i in range(n)]
+        linkage_matrix = []
+        cluster_ids = {i: i for i in range(n)}
+        current_cluster = n
+
+        def calcular_centroide(cluster):
+            centroides = []
+            for j in range(len(self.matriz[0])):
+                valores = []
+                for idx in cluster:
+                    try:
+                        valor = float(self.matriz[idx][j])  # Convertir a número si es posible
+                        valores.append(valor)
+                    except ValueError:
+                        continue  # Ignorar valores no numéricos
+                if valores:
+                    centroides.append(np.mean(valores))  # Calcular la media de los valores numéricos
+                else:
+                    centroides.append(0)  # Reemplazar con 0 si no hay valores numéricos
+            return np.array(centroides)
+
+        while len(clusters) > 1:
+            min_dist = float('inf')
+            clust1, clust2 = -1, -1
+
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    centroide_1 = calcular_centroide(clusters[i])
+                    centroide_2 = calcular_centroide(clusters[j])
+                    distancia = np.sqrt(np.sum((centroide_1 - centroide_2) ** 2))
+                    if distancia < min_dist:
+                        min_dist = distancia
+                        clust1, clust2 = i, j
+
+            linkage_matrix.append([cluster_ids[clusters[clust1][0]],
+                                   cluster_ids[clusters[clust2][0]],
+                                   min_dist,
+                                   len(clusters[clust1]) + len(clusters[clust2])])
+
+            nuevo_cluster = clusters[clust1] + clusters[clust2]
+            for idx in nuevo_cluster:
+                cluster_ids[idx] = current_cluster
+            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
+            clusters.append(nuevo_cluster)
+            current_cluster += 1
+
+        return np.array(linkage_matrix)
 
 def main(matriz):
     try:
@@ -224,15 +319,17 @@ def main(matriz):
             if matriz_cov_inversa is not None:
                 cluster.mostrar_matriz("Inversa de la matriz de covarianza", matriz_cov_inversa)
 
+                # Crear la matriz de distancias
                 distancias = []
                 for vector in matriz:
                     distancia = cluster.calcular_distancia_mahalanobis_manual(vector, media_datos, matriz_cov_inversa)
-                    distancias.append([round(float(distancia), 3)])  # Cada distancia como lista para mostrarla como matriz
+                    distancias.append([round(float(distancia), 3) for _ in range(len(matriz))])  # Rellenar la fila con la misma distancia
 
-                cluster.mostrar_matriz("Distancias de Mahalanobis", distancias)
+                cluster.mostrar_matriz("Matriz de distancias de Mahalanobis", distancias)
 
-                # Elegir el tipo de eslabonamiento
-                cluster.elegir_eslabonamiento(matriz)
+                cluster.elegir_eslabonamiento(distancias)
+
+
             else:
                 print("No se pudieron calcular distancias debido a problemas con la matriz de covarianza.")
         else:
