@@ -1,6 +1,9 @@
+import numpy as np
+
 from matrisDistancias import main as main_md
 from grower import main as main_grower
 from mahalanobis import main as main_mahalanobis
+#from pruebas_todo import main as main_todo
 
 class ProcesadorMatriz:
     def __init__(self):
@@ -23,12 +26,14 @@ class ProcesadorMatriz:
                 self.tipo_columnas = self.determinar_tipo_columnas(filas)
                 print("Tipos de columnas detectados:", self.tipo_columnas)
 
-                # Validar cada fila según el tipo detectado
-                for i, fila in enumerate(filas, start=1):
-                    if not self.validar_fila(fila, i):
-                        return
+                # Convertir valores a los tipos adecuados (float, int, str)
+                for i, fila in enumerate(filas):
+                    filas[i] = [
+                        float(valor) if tipo == 'numérico' else int(valor) if tipo == 'binario' else valor
+                        for valor, tipo in zip(fila, self.tipo_columnas)
+                    ]
 
-                self.matriz = filas
+                self.matriz = np.array(filas)  # Convertir la matriz a un array de NumPy
                 print("Matriz cargada correctamente.")
                 self.verificar_tipos_columnas()
                 self.bandera_cargado = True

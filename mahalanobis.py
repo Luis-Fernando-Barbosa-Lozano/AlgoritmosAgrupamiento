@@ -89,7 +89,7 @@ class ClusterEslabonamiento:
         distancia = np.sqrt(resta.T @ cov_inversa @ resta)
         return distancia
 
-    def  elegir_eslabonamiento(self, matriz_distancias):
+    def elegir_eslabonamiento(self, matriz_distancias):
         print("\nElige el tipo de eslabonamiento:")
         print("1. Vecino más cercano")
         print("2. Vecino más lejano")

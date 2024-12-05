@@ -1,26 +1,54 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.cluster.hierarchy import dendrogram
+
+
+def _imprimir_matriz(matriz, etiquetas, paso):
+    print(f"\nMatriz parcial después del paso {paso}:")
+    print("   " + "  ".join(etiquetas))
+    for i, fila in enumerate(matriz):
+        print(f"{etiquetas[i]}: " + "  ".join(f"{v:.4f}" for v in fila))
+
 
 class Agrupador:
     def __init__(self, matriz):
         self.matriz = matriz
         self.historial_eslabonamientos = []
+        self.columnas_min = []
+        self.columnas_max = []
+        self.normalizar_matriz()
+
+    def normalizar_matriz(self):
+        columnas = len(self.matriz[0])
+        self.columnas_min = []
+        self.columnas_max = []
+
+        for j in range(columnas):
+            try:
+                columna = [float(fila[j]) for fila in self.matriz]
+                col_min = min(columna)
+                col_max = max(columna)
+                self.columnas_min.append(col_min)
+                self.columnas_max.append(col_max)
+
+                for i in range(len(self.matriz)):
+                    self.matriz[i][j] = (float(self.matriz[i][j]) - col_min) / (col_max - col_min)
+            except ValueError:
+                self.columnas_min.append(None)
+                self.columnas_max.append(None)
 
     def calcular_distancia_gower(self):
         n = len(self.matriz)
-        matriz_distancia = np.zeros((n, n))
         columnas = len(self.matriz[0])
+        matriz_distancia = np.zeros((n, n))
 
         for i in range(n):
             for j in range(n):
                 distancia = 0
                 for k in range(columnas):
                     try:
-                        # Intentamos tratar el dato como numérico
                         distancia += abs(float(self.matriz[i][k]) - float(self.matriz[j][k]))
                     except ValueError:
-                        # Si no es numérico, tratamos como categórico
                         distancia += int(self.matriz[i][k] != self.matriz[j][k])
                 matriz_distancia[i, j] = distancia / columnas
 
@@ -47,7 +75,6 @@ class Agrupador:
             print("Opción no válida. Intenta de nuevo.")
             return self.elegir_eslabonamiento(matriz_distancias)
 
-        # Generar un solo dendrograma después de calcular el eslabonamiento
         self.generar_dendrograma(matriz_distancias, metodo=metodo_dendrograma)
 
     def eslabonamiento_vecino_mas_cercano(self, matriz_distancias):
@@ -57,73 +84,66 @@ class Agrupador:
         self._eslabonamiento_generico(matriz_distancias, max, "Vecino más lejano")
 
     def eslabonamiento_centroide(self, matriz_distancias):
-        n = len(matriz_distancias)
-        clusters = [[i + 1] for i in range(n)]
-
-        def calcular_centroide(cluster):
-            centroide = []
-            for j in range(len(self.matriz[0])):
-                valores = []
-                for idx in cluster:
-                    valor = self.matriz[idx - 1][j]
-                    try:
-                        valores.append(float(valor))  # Intentamos convertir a número
-                    except ValueError:
-                        pass  # Ignoramos valores no numéricos
-                if valores:  # Si hay valores numéricos, calculamos la media
-                    centroide.append(sum(valores) / len(valores))
-                else:  # Si no hay valores numéricos, agregamos un marcador (por ejemplo, 0)
-                    centroide.append(0)
-            return centroide
-
-        while len(clusters) > 1:
-            min_dist = float('inf')
-            clust1, clust2 = -1, -1
-
-            for i in range(len(clusters)):
-                for j in range(i + 1, len(clusters)):
-                    centroide_1 = calcular_centroide(clusters[i])
-                    centroide_2 = calcular_centroide(clusters[j])
-
-                    distancia = np.sqrt(sum((x - y) ** 2 for x, y in zip(centroide_1, centroide_2)))
-                    if distancia < min_dist:
-                        min_dist = distancia
-                        clust1, clust2 = i, j
-
-            nuevo_cluster = clusters[clust1] + clusters[clust2]
-            self.historial_eslabonamientos.append(
-                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {min_dist:.2f}\n"
-            )
-            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
-            clusters.append(nuevo_cluster)
-
-        print("\nHistorial de eslabonamientos:\n")
-        for eslabonamiento in self.historial_eslabonamientos:
-            print(eslabonamiento)
+        self._eslabonamiento_generico(matriz_distancias, np.mean, "Centroide")
 
     def _eslabonamiento_generico(self, matriz_distancias, func, tipo_eslabonamiento):
-        n = len(matriz_distancias)
-        clusters = [[i + 1] for i in range(n)]
-
+        paso = 1
         while len(clusters) > 1:
+            print(f"\nClusters actuales (Paso {paso}): {clusters}")
+
+            # Seleccionar los dos clusters más cercanos
+            func = min if tipo_eslabonamiento == "Vecino más cercano" else max
             extrema_dist = float('inf') if func == min else -float('inf')
             clust1, clust2 = -1, -1
 
             for i in range(len(clusters)):
                 for j in range(i + 1, len(clusters)):
-                    for a in clusters[i]:
-                        for b in clusters[j]:
-                            distancia = matriz_distancias[a - 1][b - 1]
-                            if func(distancia, extrema_dist) == distancia:
-                                extrema_dist = distancia
-                                clust1, clust2 = i, j
+                    distancias = [
+                        matriz_distancias[a - 1][b - 1]
+                        for a in clusters[i]
+                        for b in clusters[j]
+                    ]
+                    distancia = func(distancias)
+                    if func(distancia, extrema_dist) == distancia:
+                        extrema_dist = distancia
+                        clust1, clust2 = i, j
 
+            # Verificar índices válidos
+            if clust1 == -1 or clust2 == -1:
+                print(f"Error: Índices clust1 ({clust1}), clust2 ({clust2}) no válidos.")
+                break
+
+            # Combinar los clusters seleccionados
             nuevo_cluster = clusters[clust1] + clusters[clust2]
-            self.historial_eslabonamientos.append(
-                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {extrema_dist:.2f}\n"
-            )
-            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
+            print(f"Combinar clusters {clusters[clust1]} y {clusters[clust2]} en {nuevo_cluster}")
+
+            # Actualizar los clusters
+            clusters = [clusters[i] for i in range(len(clusters)) if i not in [clust1, clust2]]
             clusters.append(nuevo_cluster)
+
+            # Generar una nueva matriz de distancias
+            nueva_matriz = []
+            for i in range(len(clusters)):
+                fila = []
+                for j in range(len(clusters)):
+                    if i == j:
+                        fila.append(0)
+                    else:
+                        distancias = [
+                            matriz_distancias[a - 1][b - 1]
+                            for a in clusters[i]
+                            for b in clusters[j]
+                        ]
+                        fila.append(func(distancias))
+                nueva_matriz.append(fila)
+
+            # Actualizar etiquetas y matriz de distancias
+            etiquetas = [str(cluster) for cluster in clusters]
+            matriz_distancias = nueva_matriz
+
+            # Imprimir la matriz actualizada
+            _imprimir_matriz(matriz_distancias, etiquetas, paso)
+            paso += 1
 
         print(f"\nHistorial de eslabonamientos ({tipo_eslabonamiento}):\n")
         for eslabonamiento in self.historial_eslabonamientos:
@@ -193,14 +213,14 @@ class Agrupador:
                 valores = []
                 for idx in cluster:
                     try:
-                        valor = float(self.matriz[idx][j])  # Convertir a número si es posible
+                        valor = float(self.matriz[idx][j])
                         valores.append(valor)
                     except ValueError:
-                        continue  # Ignorar valores no numéricos
+                        continue
                 if valores:
-                    centroides.append(np.mean(valores))  # Calcular la media de los valores numéricos
+                    centroides.append(np.mean(valores))
                 else:
-                    centroides.append(0)  # Reemplazar con 0 si no hay valores numéricos
+                    centroides.append(0)
             return np.array(centroides)
 
         while len(clusters) > 1:
@@ -232,10 +252,11 @@ class Agrupador:
 
 def main(matriz):
     agrupador = Agrupador(matriz)
-    matriz_distancia = agrupador.calcular_distancia_gower()
 
-    print("Matriz de distancia de Gower:")
-    for fila in matriz_distancia:
-        print(["{:.4f}".format(valor) for valor in fila])
+    matriz_distancia = agrupador.calcular_distancia_gower()
+    n = len(matriz_distancia)
+
+    etiquetas = [str(i + 1) for i in range(n)]
+    _imprimir_matriz(matriz_distancia, etiquetas, paso=0)
 
     agrupador.elegir_eslabonamiento(matriz_distancia)
