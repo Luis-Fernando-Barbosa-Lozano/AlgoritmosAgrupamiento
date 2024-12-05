@@ -1,9 +1,6 @@
 import numpy as np
-
 from matrisDistancias import main as main_md
-from grower import main as main_grower
 from mahalanobis import main as main_mahalanobis
-#from pruebas_todo import main as main_todo
 
 class ProcesadorMatriz:
     def __init__(self):

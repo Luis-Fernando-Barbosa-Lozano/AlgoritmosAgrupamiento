@@ -1,298 +1,174 @@
-import math
-import matplotlib.pyplot as plt
-from scipy.cluster.hierarchy import dendrogram, linkage
-from scipy.spatial.distance import squareform
+import csv
 
-class EsquemaBinario:
-    def __init__(self, matriz_distancias=None):
-        if matriz_distancias is not None:
-            self.matriz = [[int(valor) for valor in fila] for fila in matriz_distancias]
-        else:
-            self.matriz = []
-        self.bandera_cargado = False
-        self.historial_eslabonamientos = []  # Lista para almacenar los eslabonamientos realizados
 
-    def imprimir_matriz(self):
-        if not self.bandera_cargado:
-            print("La matriz no se ha cargado. No se puede imprimir.")
-            return
-        for fila in self.matriz:
-            print("\t".join(map(str, fila)))
+def leer_datos(archivo):
+    datos = []
+    try:
+        with open(archivo, 'r', encoding='utf-8-sig') as f:
+            lector = csv.reader(f)
+            for fila in lector:
+                datos.append([int(valor.strip()) for valor in fila])  # Usando valores binarios
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+    return datos
 
-    def generar_dendrograma(self, metodo):
-        if not self.bandera_cargado:
-            print("La matriz no se ha cargado. No se puede generar el dendrograma.")
-            return
 
-        # Calcula las distancias utilizando el método que prefieras
-        matriz_distancias = self.calcular_distancias(metodo)  # Guarda la matriz de distancias
+def calcular_distancia_sokal(datos, i, j):
+    a = b = c = d = 0
+    for k in range(len(datos[i])):
+        if datos[i][k] == 1 and datos[j][k] == 1:
+            a += 1
+        elif datos[i][k] == 1 and datos[j][k] == 0:
+            b += 1
+        elif datos[i][k] == 0 and datos[j][k] == 1:
+            c += 1
+        elif datos[i][k] == 0 and datos[j][k] == 0:
+            d += 1
 
-        if matriz_distancias is None:  # Comprueba si hubo un error en el cálculo de distancias
-            return
+    denominador = a + b + c + d
+    if denominador == 0:
+        return 0  # Retorna distancia 0 si ambos son iguales en todos los valores 0
+    return (b + c) / denominador
 
-        # Convierte la matriz de distancias a formato condensado
-        matriz_distancias_condensada = squareform(matriz_distancias)
 
-        # Usa la función linkage para realizar el agrupamiento
-        Z = linkage(matriz_distancias_condensada, method='average')
+def calcular_distancia_jaccard(datos, i, j):
+    a = b = c = 0
+    for k in range(len(datos[i])):
+        if datos[i][k] == 1 and datos[j][k] == 1:
+            a += 1
+        elif datos[i][k] == 1 and datos[j][k] == 0:
+            b += 1
+        elif datos[i][k] == 0 and datos[j][k] == 1:
+            c += 1
 
-        # Historial de eslabonamientos basado en el formato de linkage
-        self.historial_eslabonamientos.clear()  # Limpiar historial previo
-        for i, (clust1, clust2, dist, _) in enumerate(Z):
-            self.historial_eslabonamientos.append(
-                f"Paso {i + 1}: Combinar clúster {int(clust1) + 1} y clúster {int(clust2) + 1} con distancia {dist:.2f}"
-            )
+    denominador = a + b + c
+    if denominador == 0:
+        return 0  # Retorna distancia 0 si ambos son iguales en todos los valores 0
+    return (b + c) / denominador
 
-        # Ajustar etiquetas para coincidir con el historial
-        etiquetas = [f'Individuo {i + 1}' for i in range(len(self.matriz))]
-        print("\nHistorial de eslabonamientos:\n" + "\n".join(self.historial_eslabonamientos))
+def calcular_distancia_binaria(datos):
+    n = len(datos)
+    matriz_distancia = [[0.0] * n for _ in range(n)]
 
-        # Dibuja el dendrograma
-        plt.figure(figsize=(10, 7))
-        dendrogram(Z, labels=etiquetas)
-        plt.title('Dendrograma')
-        plt.xlabel('Individuos')
-        plt.ylabel('Distancia')
-        plt.show()
+    for i in range(n):
+        for j in range(i + 1, n):
+            # Calcula la distancia binaria: 0 si son iguales, 1 si son diferentes
+            distancia = sum(1 for k in range(len(datos[0])) if datos[i][k] != datos[j][k])
+            matriz_distancia[i][j] = distancia
+            matriz_distancia[j][i] = distancia
 
-    def extraer_indices_y_distancia(self, eslabonamiento):
-        """Extrae los índices de clústeres y la distancia de una entrada del historial."""
-        import re
-        # Busca los índices y distancia con expresiones regulares
-        match = re.search(r"clúster (\d+) y clúster (\d+) con distancia ([\d.]+)", eslabonamiento)
-        if match:
-            clust1 = int(match.group(1)) - 1  # Ajustar a índice cero
-            clust2 = int(match.group(2)) - 1
-            dist = float(match.group(3))
-            return clust1, clust2, dist
-        raise ValueError(f"No se pudo analizar el eslabonamiento: {eslabonamiento}")
+    return matriz_distancia
 
-    def calcular_distancias(self, metodo):
-        n = len(self.matriz)
-        matriz_distancias = [[0] * n for _ in range(n)]
+def realizar_agrupamiento(matriz_distancia, metodo, tipo_distancia):
+    n = len(matriz_distancia)
+    clusters = [str(i + 1) for i in range(n)]  # Inicializa nombres de clusters
 
-        for i in range(n):
-            for j in range(i + 1, n):
-                if metodo == "sokal":
-                    distancia = self.calcular_indice_sokal(self.matriz[i], self.matriz[j])
-                elif metodo == "jaccard":
-                    distancia = self.calcular_indice_jaccard(self.matriz[i], self.matriz[j])
-                else:
-                    print("Método no reconocido. Por favor, elige 'sokal' o 'jaccard'.")
-                    return None
+    for paso in range(1, n):
+        menor_distancia = float('inf')
+        cluster1, cluster2 = -1, -1
 
-                matriz_distancias[i][j] = distancia
-                matriz_distancias[j][i] = distancia
+        # Encuentra los clusters más cercanos
+        for i in range(len(matriz_distancia)):
+            for j in range(i + 1, len(matriz_distancia[i])):
+                distancia = matriz_distancia[i][j]
+                if distancia < menor_distancia:
+                    menor_distancia = distancia
+                    cluster1, cluster2 = i, j
 
-        print("\nMatriz de distancias completa:")
-        for fila in matriz_distancias:
-            print("\t".join(f"{valor:.2f}" for valor in fila))
+        # Imprime la fusión actual
+        print(
+            f"Paso {paso}: Fusión de ({clusters[cluster1]}, {clusters[cluster2]}) con distancia {menor_distancia:.4f} [{metodo}]")
 
-        return matriz_distancias
+        # Combina los clusters en la lista
+        clusters[cluster1] = f"({clusters[cluster1]},{clusters[cluster2]})"
+        clusters.pop(cluster2)  # Elimina el cluster fusionado
 
-    def elegir_eslabonamiento(self, matriz_distancias):
-        print("\nElige el tipo de eslabonamiento:")
-        print("1. Vecino más cercano")
-        print("2. Vecino más lejano")
-        print("3. Centroide")
+        # Actualiza las distancias
+        for i in range(len(matriz_distancia)):
+            if i != cluster1 and i != cluster2:
+                matriz_distancia[cluster1][i] = calcular_nueva_distancia(
+                    matriz_distancia[cluster1][i], matriz_distancia[cluster2][i], metodo
+                )
+                matriz_distancia[i][cluster1] = matriz_distancia[cluster1][i]
 
-        tipo = input("Introduce el número correspondiente: ").strip()
+        # Elimina fila y columna correspondientes al cluster fusionado
+        matriz_distancia = eliminar_columna_y_fila(matriz_distancia, cluster2)
 
-        if tipo == "1":
-            self.eslabonamiento_vecino_mas_cercano(matriz_distancias)
-        elif tipo == "2":
-            self.eslabonamiento_vecino_mas_lejano(matriz_distancias)
-        elif tipo == "3":
-            self.eslabonamiento_centroide(matriz_distancias)
-        else:
-            print("Opción no válida. Intenta de nuevo.")
-            self.elegir_eslabonamiento(matriz_distancias)
+        # Imprime la matriz de distancias actualizada
+        print(f"==== Matriz de Distancias Intermedia ({metodo}) ====")
+        imprimir_matriz(matriz_distancia, clusters)
+        print("=========================")
 
-    def eslabonamiento_vecino_mas_cercano(self, matriz_distancias):
+def eliminar_columna_y_fila(matriz, indice):
+    nueva_matriz = [
+        [matriz[i][j] for j in range(len(matriz)) if j != indice]
+        for i in range(len(matriz)) if i != indice
+    ]
+    return nueva_matriz
 
-        n = len(matriz_distancias)
-        clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
+def calcular_nueva_distancia(d1, d2, metodo):
+    if metodo == "centroide":
+        return (d1 + d2) / 2
+    elif metodo == "maximos":
+        return max(d1, d2)
+    elif metodo == "minimos":
+        return min(d1, d2)
+    else:
+        return (d1 + d2) / 2  # Default (centroide)
 
-        while len(clusters) > 1:
-            # Encontrar la distancia mínima entre clústeres
-            min_dist = float('inf')
-            clust1, clust2 = -1, -1
-            for i in range(len(clusters)):
-                for j in range(i + 1, len(clusters)):
-                    # Calculamos la distancia mínima o máxima entre los clusters
-                    distancias_inter_clust = [
-                        matriz_distancias[a - 1][b - 1]
-                        # Ajuste de índice, restando 1 para manejar la matriz correctamente
-                        for a in clusters[i]
-                        for b in clusters[j]
-                    ]
-                    distancia = min(distancias_inter_clust)  # Obtener la distancia mínima
-                    if distancia < min_dist:  # Actualizar si se encuentra una distancia menor
-                        min_dist = distancia
-                        clust1, clust2 = i, j
+def imprimir_matriz(matriz, clusters):
+    print("      ", end="")
 
-            # Combinar los clústeres encontrados
-            nuevo_cluster = clusters[clust1] + clusters[clust2]
-            self.historial_eslabonamientos.append(
-                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {min_dist:.2f}\n"
-            )
+    for cluster in clusters:
+        print(f"{cluster:<8}", end="")
 
-            # Actualizar la lista de clústeres
-            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
-            clusters.append(nuevo_cluster)
+    print()
 
-            # Recalcular distancias para el nuevo clúster (vecino más cercano)
-            for i in range(len(matriz_distancias)):
-                if i != clust1 and i != clust2:
-                    # Actualizamos las distancias para el nuevo clúster
-                    matriz_distancias[i][len(clusters) - 1] = min(matriz_distancias[i][clust1],
-                                                                  matriz_distancias[i][clust2])
+    for i, cluster in enumerate(clusters):
 
-        # Al imprimir, cada eslabonamiento se mostrará en una nueva línea
-        print("\nHistorial de eslabonamientos:\n")
-        for eslabonamiento in self.historial_eslabonamientos:
-            print(eslabonamiento)
+        print(f"{cluster:<6}", end="")
 
-    def eslabonamiento_vecino_mas_lejano(self, matriz_distancias):
-        n = len(matriz_distancias)
-        clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
+        for j in range(len(clusters)):
 
-        while len(clusters) > 1:
-            # Encontrar la distancia máxima entre clústeres
-            max_dist = -float('inf')
-            clust1, clust2 = -1, -1
-            for i in range(len(clusters)):
-                for j in range(i + 1, len(clusters)):
-                    for a in clusters[i]:
-                        for b in clusters[j]:
-                            if matriz_distancias[a - 1][b - 1] > max_dist:  # Restar 1 para índices de matriz
-                                max_dist = matriz_distancias[a - 1][b - 1]
-                                clust1, clust2 = i, j
+            if i == j:
 
-            # Combinar los clústeres encontrados
-            nuevo_cluster = clusters[clust1] + clusters[clust2]
-            self.historial_eslabonamientos.append(
-                f"Combinar elemento {clusters[clust1]} y elemento {clusters[clust2]} con distancia {max_dist:.2f}\n"
-            )
+                print("0.00    ", end="")
 
-            # Actualizar la lista de clústeres
-            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
-            clusters.append(nuevo_cluster)
-
-            # Recalcular distancias para el nuevo clúster (vecino más lejano)
-            for i in range(len(matriz_distancias)):
-                if i != clust1 and i != clust2:
-                    matriz_distancias[i][len(clusters) - 1] = max(matriz_distancias[i][clust1],
-                                                                  matriz_distancias[i][clust2])
-
-        # Al imprimir, cada eslabonamiento se mostrará en una nueva línea
-        print("\nHistorial de eslabonamientos:\n")
-        for eslabonamiento in self.historial_eslabonamientos:
-            print(eslabonamiento)
-
-    def eslabonamiento_centroide(self, matriz_distancias):
-        n = len(matriz_distancias)
-        clusters = [[i + 1] for i in range(n)]  # Cada punto comienza como un clúster separado
-        eslabonamientos = []  # Almacena los pasos para el dendrograma
-
-        def calcular_centroide(cluster):
-            """Calcula el centroide promedio del clúster."""
-            return [
-                sum(self.matriz[idx - 1][j] for idx in cluster) / len(cluster)
-                for j in range(len(self.matriz[0]))
-            ]
-
-        def distancia_centroide(centroide1, centroide2):
-            """Calcula la distancia euclidiana entre dos centroides."""
-            return math.sqrt(
-                sum((c1 - c2) ** 2 for c1, c2 in zip(centroide1, centroide2))
-            )
-
-        while len(clusters) > 1:
-            min_dist = float('inf')
-            clust1, clust2 = -1, -1
-
-            # Calcula la distancia entre todos los pares de clústeres
-            for i in range(len(clusters)):
-                for j in range(i + 1, len(clusters)):
-                    centroide1 = calcular_centroide(clusters[i])
-                    centroide2 = calcular_centroide(clusters[j])
-                    distancia = distancia_centroide(centroide1, centroide2)
-
-                    if distancia < min_dist:
-                        min_dist = distancia
-                        clust1, clust2 = i, j
-
-            # Combina los dos clústeres más cercanos
-            nuevo_cluster = clusters[clust1] + clusters[clust2]
-            eslabonamientos.append((clusters[clust1], clusters[clust2], min_dist, len(nuevo_cluster)))
-            self.historial_eslabonamientos.append(
-                f"Combinar clúster {clusters[clust1]} y clúster {clusters[clust2]} "
-                f"con distancia {min_dist:.2f}"
-            )
-
-            # Actualiza la lista de clústeres
-            clusters = [clusters[k] for k in range(len(clusters)) if k != clust1 and k != clust2]
-            clusters.append(nuevo_cluster)
-
-        # Guarda los eslabonamientos para el dendrograma
-        self.eslabonamientos = eslabonamientos
-
-        # Imprime el historial de eslabonamientos
-        print("\nHistorial de eslabonamientos (centroide):\n")
-        for eslabonamiento in self.historial_eslabonamientos:
-            print(eslabonamiento)
-
-    def calcular_conteo(self, a, b):
-        print(f"Comparando: {a} y {b}")  # Imprime las filas comparadas
-        a_count = sum(1 for x, y in zip(a, b) if x == 1 and y == 1)
-        b_count = sum(1 for x, y in zip(a, b) if x == 1 and y == 0)
-        c_count = sum(1 for x, y in zip(a, b) if x == 0 and y == 1)
-        d_count = sum(1 for x, y in zip(a, b) if x == 0 and y == 0)
-        print(f"Resultado de conteo - a_count: {a_count}, b_count: {b_count}, c_count: {c_count}, d_count: {d_count}")
-        return a_count, b_count, c_count, d_count
-
-    def calcular_indice_sokal(self, a, b):
-        a_count, b_count, c_count, d_count = self.calcular_conteo(a, b)
-        return round((a_count + d_count) / (a_count + b_count + c_count + d_count), 2) if (a_count + b_count + c_count + d_count) != 0 else 0.0
-
-    def calcular_indice_jaccard(self, a, b):
-        a_count, b_count, c_count, d_count = self.calcular_conteo(a, b)
-        denominador = a_count + b_count + c_count
-        print(f"Jaccard - Numerador: {a_count}, Denominador: {denominador}")
-        return round(a_count / denominador, 2) if denominador != 0 else 0.0
-
-    def elegir_metodo(self):
-        while True:
-            metodo = input("¿Deseas usar el índice de Sokal o Jaccard? (sokal/jaccard): ").strip().lower()
-            if metodo in ["sokal", "jaccard"]:
-                return metodo
             else:
-                print("Opción no válida. Por favor elige 'sokal' o 'jaccard'.")
 
-def main(matriz):
-    # Crear una instancia de la clase EsquemaBinario
-    esquema_binario = EsquemaBinario(matriz)
+                print(f"{matriz[i][j]:.2f}    ", end="")
 
-    # Activar la bandera para indicar que la matriz está cargada
-    esquema_binario.bandera_cargado = True
+        print()
 
-    # Imprimir la matriz cargada
-    print("Matriz inicial:")
-    esquema_binario.imprimir_matriz()
+def main():
+    archivo = input("Ingresa el archivo CSV con datos binarios: ")
+    datos = leer_datos(archivo)
 
-    # Solicitar al usuario el método de cálculo de distancia
-    metodo = esquema_binario.elegir_metodo()
-
-    # Calcular la matriz de distancias con el método elegido
-    matriz_distancia = esquema_binario.calcular_distancias(metodo)
-    if matriz_distancia is None:  # Si hay error en el cálculo, finalizar el programa
+    if not datos:
+        print("El archivo está vacío o no tiene datos válidos.")
         return
 
-    # Preguntar al usuario por el tipo de eslabonamiento
-    esquema_binario.elegir_eslabonamiento(matriz_distancia)
+    print("Calculando matriz de distancias binarias...")
+    matriz_distancia = calcular_distancia_binaria(datos)
 
-    # Generar el dendrograma
-    esquema_binario.generar_dendrograma(metodo)
+    tipo_distancia = input("Selecciona el tipo de distancia (sokal, jaccard): ").strip().lower()
+    if tipo_distancia not in ["sokal", "jaccard"]:
+        print("Tipo de distancia no válido. Se usará 'binaria' por defecto.")
+        tipo_distancia = "binaria"
+
+    metodo = input("Selecciona el método de agrupamiento (centroide, maximos, minimos): ").strip().lower()
+    if metodo not in ["centroide", "maximos", "minimos"]:
+        print("Método no válido. Se usará 'centroide' por defecto.")
+        metodo = "centroide"
 
 
+
+    print("Realizando agrupamiento jerárquico...")
+    realizar_agrupamiento(matriz_distancia, metodo, tipo_distancia)
+
+    print("Proceso completado.")
+
+
+
+if __name__ == "__main__":
+    main()
